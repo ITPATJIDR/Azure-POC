@@ -1,0 +1,35 @@
+# Node
+node_modules/
+npm-debug.log*
+dist/
+*.local
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Docker
+*.pid
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumb.db
+
+# OpenTofu / Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+
+# Azure credentials — NEVER commit!
+opentofu/az.json

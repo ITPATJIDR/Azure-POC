@@ -1,0 +1,22 @@
+# terraform.tfvars.example — Copy to terraform.tfvars and fill in your values.
+# DO NOT commit terraform.tfvars to git (it's in .gitignore).
+
+project_name = "scg"
+environment  = "dev"
+location     = "southeastasia"
+
+resource_group_name = "scg-dev-rg"
+
+# VNet & Subnets
+vnet_address_space     = ["10.0.0.0/16"]
+aks_system_subnet_cidr = "10.0.1.0/24"
+aks_user_subnet_cidr   = "10.0.2.0/24"
+acr_subnet_cidr        = "10.0.3.0/24"
+management_subnet_cidr = "10.0.4.0/24"
+
+tags = {
+  Project     = "scg-devops"
+  ManagedBy   = "opentofu"
+  Environment = "dev"
+  Owner       = "platform-team"
+}
