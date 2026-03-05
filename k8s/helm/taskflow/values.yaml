@@ -1,0 +1,86 @@
+# Default values for taskflow.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  nameOverride: ""
+  fullnameOverride: ""
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: scgdevacr.azurecr.io/taskflow-frontend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+backend:
+  replicaCount: 2
+  image:
+    repository: scgdevacr.azurecr.io/taskflow-backend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 3001
+  env:
+    NODE_ENV: production
+    PORT: "3001"
+    CORS_ORIGIN: "*" # Allow all in demo, restrict in prod
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Database credentials (should be overridden via --set or values-secrets.yaml in CI/CD)
+database:
+  host: scg-dev-postgres.postgres.database.azure.com
+  port: "5432"
+  name: tododb
+  user: todoadmin
+  password: "" # MUST BE SET DURING DEPLOYMENT
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    # nginx.ingress.kubernetes.io/rewrite-target: /$2 # Use if stripping /api
+    nginx.ingress.kubernetes.io/ssl-redirect: "false" # Set true when TLS is enabled
+  hosts:
+    - host: taskflow.local # Replace with LB Public IP / Custom Domain in Prod
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            serviceName: frontend
+        - path: /api
+          pathType: Prefix
+          backend:
+            serviceName: backend
+
+# Dependency configuration: Observability Stack
+kube-prometheus-stack:
+  enabled: true
+  grafana:
+    adminPassword: "admin" # Change this in production
+    # Optionally expose Grafana via Ingress if needed
+  prometheus:
+    prometheusSpec:
+      retention: "5d"
+  # Disable noisy alerts for demo
+  defaultRules:
+    create: false
+  alertmanager:
+    enabled: false

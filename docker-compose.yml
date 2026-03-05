@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-#  SCG DevOps Take-Home Assignment
+#  Todo List App — Three Tier Architecture
 #  docker-compose.yml — local development
 # ─────────────────────────────────────────────────────────────────────────────
 name: scg-test
@@ -8,9 +8,35 @@ networks:
   scg-net:
     driver: bridge
 
+volumes:
+  postgres-data:
+
 services:
 
-  # ── Backend ────────────────────────────────────────────────────────────────
+  # ── Tier 3: Database ───────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: scg-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tododb
+      POSTGRES_USER: todouser
+      POSTGRES_PASSWORD: todopassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - scg-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todouser -d tododb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Tier 2: Application (Backend API) ─────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -22,18 +48,26 @@ services:
       PORT: 3001
       APP_VERSION: "1.0.0"
       CORS_ORIGIN: "http://localhost:3000"
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: tododb
+      DB_USER: todouser
+      DB_PASSWORD: todopassword
     ports:
       - "3001:3001"
     networks:
       - scg-net
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
-  # ── Frontend ───────────────────────────────────────────────────────────────
+  # ── Tier 1: Presentation (Frontend) ───────────────────────────────────────
   frontend:
     build:
       context: ./frontend
