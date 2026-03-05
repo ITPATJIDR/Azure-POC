@@ -24,7 +24,14 @@ terraform {
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    # Allow destroying Resource Group even if it contains resources that
+    # were created by Azure automatically (e.g. ContainerInsights solution
+    # from AKS Monitor) and are not tracked in the OpenTofu state.
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
 
   client_id       = local._az.appId
   client_secret   = local._az.password

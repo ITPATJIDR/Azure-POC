@@ -143,6 +143,21 @@ resource "azurerm_network_security_rule" "aks_allow_api_server" {
   network_security_group_name = azurerm_network_security_group.aks.name
 }
 
+# Allow outbound to PostgreSQL database subnet (Tier 3) on port 5432
+resource "azurerm_network_security_rule" "aks_allow_postgres_outbound" {
+  name                        = "Allow-PostgreSQL-Outbound"
+  priority                    = 115
+  direction                   = "Outbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5432"
+  source_address_prefix       = "*"
+  destination_address_prefix  = var.database_subnet_cidr
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.aks.name
+}
+
 # Allow outbound to ACR for image pulls
 resource "azurerm_network_security_rule" "aks_allow_acr_outbound" {
   name                        = "Allow-ACR-Outbound"
@@ -244,6 +259,112 @@ resource "azurerm_network_security_rule" "mgmt_deny_all_inbound" {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Subnet: Database (Tier 3 — PostgreSQL)
+# ─────────────────────────────────────────────────────────────────────────────
+resource "azurerm_subnet" "database" {
+  name                 = "${var.prefix}-database-subnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = [var.database_subnet_cidr]
+
+  # PostgreSQL Flexible Server VNet integration requires subnet delegation
+  service_endpoints = ["Microsoft.Sql"]
+
+  delegation {
+    name = "postgresql-fs-delegation"
+    service_delegation {
+      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  NSG: Database — only AKS subnets may reach port 5432
+# ─────────────────────────────────────────────────────────────────────────────
+resource "azurerm_network_security_group" "database" {
+  name                = "${var.prefix}-database-nsg"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  tags                = var.tags
+}
+
+# Allow PostgreSQL only from AKS system node pool
+resource "azurerm_network_security_rule" "db_allow_aks_system" {
+  name                        = "Allow-AKS-System-PostgreSQL"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5432"
+  source_address_prefix       = var.aks_system_subnet_cidr
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.database.name
+}
+
+# Allow PostgreSQL only from AKS user (workload) node pool
+resource "azurerm_network_security_rule" "db_allow_aks_user" {
+  name                        = "Allow-AKS-User-PostgreSQL"
+  priority                    = 110
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5432"
+  source_address_prefix       = var.aks_user_subnet_cidr
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.database.name
+}
+
+# Allow PostgreSQL from management subnet (for DBA access / migrations)
+resource "azurerm_network_security_rule" "db_allow_management" {
+  name                        = "Allow-Management-PostgreSQL"
+  priority                    = 120
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "5432"
+  source_address_prefix       = var.management_subnet_cidr
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.database.name
+}
+
+# Deny ALL other inbound to database subnet
+resource "azurerm_network_security_rule" "db_deny_all_inbound" {
+  name                        = "Deny-All-Inbound"
+  priority                    = 4096
+  direction                   = "Inbound"
+  access                      = "Deny"
+  protocol                    = "*"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.database.name
+}
+
+# Deny ALL inbound from internet explicitly (defence-in-depth)
+resource "azurerm_network_security_rule" "db_deny_internet_inbound" {
+  name                        = "Deny-Internet-Inbound"
+  priority                    = 4090
+  direction                   = "Inbound"
+  access                      = "Deny"
+  protocol                    = "*"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "Internet"
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.database.name
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  NSG Associations
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -261,4 +382,10 @@ resource "azurerm_subnet_network_security_group_association" "management" {
   subnet_id                 = azurerm_subnet.management.id
   network_security_group_id = azurerm_network_security_group.management.id
 }
+
+resource "azurerm_subnet_network_security_group_association" "database" {
+  subnet_id                 = azurerm_subnet.database.id
+  network_security_group_id = azurerm_network_security_group.database.id
+}
+
 # Note: ACR subnet uses Private Endpoint — no NSG association needed.

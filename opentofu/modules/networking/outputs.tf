@@ -30,6 +30,11 @@ output "management_subnet_id" {
   value       = azurerm_subnet.management.id
 }
 
+output "database_subnet_id" {
+  description = "Subnet ID for PostgreSQL database (Tier 3). Pass to azurerm_postgresql_flexible_server or private endpoint."
+  value       = azurerm_subnet.database.id
+}
+
 # ── NSG IDs ───────────────────────────────────────────────────────────────────
 output "aks_nsg_id" {
   description = "ID of the NSG associated with AKS subnets."
@@ -39,4 +44,9 @@ output "aks_nsg_id" {
 output "management_nsg_id" {
   description = "ID of the NSG associated with the management subnet."
   value       = azurerm_network_security_group.management.id
+}
+
+output "database_nsg_id" {
+  description = "ID of the NSG associated with the database subnet. Allows port 5432 from AKS and management subnets only."
+  value       = azurerm_network_security_group.database.id
 }

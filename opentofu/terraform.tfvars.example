@@ -1,22 +1,29 @@
-# terraform.tfvars.example — Copy to terraform.tfvars and fill in your values.
-# DO NOT commit terraform.tfvars to git (it's in .gitignore).
+# ─────────────────────────────────────────────────────────────────────────────
+#  terraform.tfvars.example
+#  Copy to terraform.tfvars and fill in the sensitive values before running
+#  tofu plan / tofu apply
+# ─────────────────────────────────────────────────────────────────────────────
 
-project_name = "scg"
-environment  = "dev"
-location     = "southeastasia"
-
+# ── Project ───────────────────────────────────────────────────────────────────
+project_name        = "scg"
+environment         = "dev"
+location            = "southeastasia"
 resource_group_name = "scg-dev-rg"
 
-# VNet & Subnets
-vnet_address_space     = ["10.0.0.0/16"]
-aks_system_subnet_cidr = "10.0.1.0/24"
-aks_user_subnet_cidr   = "10.0.2.0/24"
-acr_subnet_cidr        = "10.0.3.0/24"
-management_subnet_cidr = "10.0.4.0/24"
+# ── AKS ───────────────────────────────────────────────────────────────────────
+aks_system_vm_size    = "Standard_D2s_v3"
+aks_system_node_count = 2
+aks_user_vm_size      = "Standard_D2s_v3"
+aks_user_node_count   = 2
+aks_admin_username    = "aksadmin"
 
-tags = {
-  Project     = "scg-devops"
-  ManagedBy   = "opentofu"
-  Environment = "dev"
-  Owner       = "platform-team"
-}
+# REQUIRED: paste your SSH public key here
+ssh_public_key = "ssh-rsa AAAA... your-key-here"
+
+# ── Database ──────────────────────────────────────────────────────────────────
+db_admin_login    = "todoadmin"
+db_sku_name       = "B_Standard_B1ms"  # Use GP_Standard_D2s_v3 for production
+db_storage_mb     = 32768              # 32 GB
+
+# REQUIRED: set a strong password (min 8 chars, upper+lower+digit+special)
+db_admin_password = "ChangeMeStrong123!"

@@ -46,9 +46,15 @@ variable "management_subnet_cidr" {
   type        = string
 }
 
+variable "database_subnet_cidr" {
+  description = "CIDR for PostgreSQL / database subnet (Tier 3). Only AKS subnets may connect on port 5432."
+  type        = string
+}
+
 # ── NSG ───────────────────────────────────────────────────────────────────────
 variable "management_allowed_cidr" {
   description = "Source CIDR allowed to SSH/RDP into the management subnet. Restrict to your corporate IP or VPN."
   type        = string
   default     = "10.0.0.0/8"
 }
+
