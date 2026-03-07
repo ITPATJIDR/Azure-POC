@@ -77,13 +77,13 @@ resource "azurerm_network_security_rule" "aks_allow_https_inbound" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "443"
-  source_address_prefix       = "*"
+  source_address_prefix       = "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name
 }
 
-# Allow HTTP inbound (application ingress before TLS termination)
+# Allow HTTP inbound from Internet
 resource "azurerm_network_security_rule" "aks_allow_http_inbound" {
   name                        = "Allow-HTTP-Inbound"
   priority                    = 110
@@ -92,7 +92,22 @@ resource "azurerm_network_security_rule" "aks_allow_http_inbound" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "80"
-  source_address_prefix       = "*"
+  source_address_prefix       = "Internet"
+  destination_address_prefix  = "*"
+  resource_group_name         = var.resource_group_name
+  network_security_group_name = azurerm_network_security_group.aks.name
+}
+
+# Allow Kubernetes NodePorts inbound (Azure LB translates 80/443 -> 30000-32767)
+resource "azurerm_network_security_rule" "aks_allow_nodeport_inbound" {
+  name                        = "Allow-NodePort-Inbound"
+  priority                    = 115
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "30000-32767"
+  source_address_prefix       = "Internet"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name

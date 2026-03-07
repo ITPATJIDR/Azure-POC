@@ -10,8 +10,8 @@ resource "azurerm_public_ip" "lb" {
   resource_group_name = var.resource_group_name
   location            = var.location
   allocation_method   = "Static"
-  sku                 = "Standard" # Must match LB SKU
-  zones               = ["2", "3"] # southeastasia supports only zones 2 and 3
+  sku                 = "Standard"      # Must match LB SKU
+  zones               = ["1", "2", "3"] # Required to prevent replacement of existing IP
 
   domain_name_label = var.dns_label # optional: <dns_label>.<region>.cloudapp.azure.com
   tags              = var.tags
