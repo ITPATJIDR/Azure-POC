@@ -10,3 +10,8 @@ dependencies:
     version: "56.6.2" # Use a stable version
     repository: "https://prometheus-community.github.io/helm-charts"
     condition: kube-prometheus-stack.enabled
+  
+  - name: ingress-nginx
+    version: "4.10.0"
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    condition: ingress-nginx.enabled

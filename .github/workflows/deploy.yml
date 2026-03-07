@@ -86,6 +86,9 @@ jobs:
             --namespace default \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Build Helm Dependencies
+        run: helm dependency build ./k8s/helm/taskflow
+
       - name: Deploy TaskFlow via Helm
         # Using the git commit SHA as the image tag guarantees we deploy the exact code we just built
         run: |

@@ -62,7 +62,7 @@ ingress:
     # nginx.ingress.kubernetes.io/rewrite-target: /$2 # Use if stripping /api
     nginx.ingress.kubernetes.io/ssl-redirect: "false" # Set true when TLS is enabled
   hosts:
-    - host: taskflow.local # Replace with LB Public IP / Custom Domain in Prod
+    - host: taskflow.20.195.38.43.nip.io # Use public IP format
       paths:
         - path: /
           pathType: Prefix
@@ -87,3 +87,13 @@ kube-prometheus-stack:
     create: false
   alertmanager:
     enabled: false
+
+# Nginx Ingress Controller (Added as dependency)
+ingress-nginx:
+  enabled: true
+  controller:
+    service:
+      annotations:
+        service.beta.kubernetes.io/azure-load-balancer-resource-group: scg-dev-rg
+      # We inform Azure to use the Public IP we already created via Terraform (Optional, but good practice since Terraform created an LB PIP)
+      loadBalancerIP: "20.195.38.43"
