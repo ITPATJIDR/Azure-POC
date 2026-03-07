@@ -10,12 +10,12 @@ resource "azurerm_container_registry" "main" {
   location            = var.location
   sku                 = "Premium" # Required for private link
 
-  admin_enabled                 = false # Use managed identity / service principal instead
-  public_network_access_enabled = false # All access via private endpoint only
+  admin_enabled                 = true  # Enable admin for easier testing/fallback if needed
+  public_network_access_enabled = true  # Allow GitHub Actions to reach the registry
   zone_redundancy_enabled       = false # Set true for production HA
 
   network_rule_set {
-    default_action = "Deny"
+    default_action = "Allow"
   }
 
   tags = var.tags
