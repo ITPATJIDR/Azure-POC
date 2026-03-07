@@ -93,7 +93,6 @@ ingress-nginx:
   enabled: true
   controller:
     service:
-      annotations:
-        service.beta.kubernetes.io/azure-load-balancer-resource-group: scg-dev-rg
-      # We inform Azure to use the Public IP we already created via Terraform (Optional, but good practice since Terraform created an LB PIP)
-      loadBalancerIP: "20.195.38.43"
+      # We removed the old service.beta.kubernetes.io/azure-load-balancer-resource-group annotation
+      # and the loadBalancerIP to allow AKS to provision a new dynamic Public IP automatically.
+      type: LoadBalancer
