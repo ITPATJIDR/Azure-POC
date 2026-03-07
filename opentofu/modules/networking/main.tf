@@ -77,7 +77,7 @@ resource "azurerm_network_security_rule" "aks_allow_https_inbound" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "443"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = "*"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name
@@ -92,7 +92,7 @@ resource "azurerm_network_security_rule" "aks_allow_http_inbound" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "80"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = "*"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name
@@ -107,7 +107,7 @@ resource "azurerm_network_security_rule" "aks_allow_nodeport_inbound" {
   protocol                    = "Tcp"
   source_port_range           = "*"
   destination_port_range      = "30000-32767"
-  source_address_prefix       = "Internet"
+  source_address_prefix       = "*"
   destination_address_prefix  = "*"
   resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name

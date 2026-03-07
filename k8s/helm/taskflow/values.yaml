@@ -96,3 +96,4 @@ ingress-nginx:
       # We removed the old service.beta.kubernetes.io/azure-load-balancer-resource-group annotation
       # and the loadBalancerIP to allow AKS to provision a new dynamic Public IP automatically.
       type: LoadBalancer
+      externalTrafficPolicy: Local
