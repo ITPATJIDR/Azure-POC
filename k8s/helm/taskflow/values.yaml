@@ -62,7 +62,7 @@ ingress:
     # nginx.ingress.kubernetes.io/rewrite-target: /$2 # Use if stripping /api
     nginx.ingress.kubernetes.io/ssl-redirect: "false" # Set true when TLS is enabled
   hosts:
-    - host: taskflow.20.195.38.43.nip.io # Use public IP format
+    - host: taskflow.52.139.236.107.nip.io # Use the new dynamic public IP format
       paths:
         - path: /
           pathType: Prefix
