@@ -72,6 +72,20 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v4
 
+      - name: Create ACR Image Pull Secret
+        run: |
+          # Fetch credentials
+          ACR_USERNAME=$(az acr credential show -n scgdevacr --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show -n scgdevacr --query passwords[0].value -o tsv)
+          
+          # Create or update the secret
+          kubectl create secret docker-registry acr-secret \
+            --docker-server=${{ env.ACR_LOGIN_SERVER }} \
+            --docker-username=$ACR_USERNAME \
+            --docker-password=$ACR_PASSWORD \
+            --namespace default \
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy TaskFlow via Helm
         # Using the git commit SHA as the image tag guarantees we deploy the exact code we just built
         run: |

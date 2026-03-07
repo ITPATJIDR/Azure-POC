@@ -6,6 +6,9 @@ global:
   nameOverride: ""
   fullnameOverride: ""
 
+imagePullSecrets:
+  - name: acr-secret
+
 frontend:
   replicaCount: 2
   image:
