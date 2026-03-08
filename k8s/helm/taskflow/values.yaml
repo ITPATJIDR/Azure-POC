@@ -60,9 +60,10 @@ ingress:
   className: "nginx"
   annotations:
     # nginx.ingress.kubernetes.io/rewrite-target: /$2 # Use if stripping /api
-    nginx.ingress.kubernetes.io/ssl-redirect: "false" # Set true when TLS is enabled
+    nginx.ingress.kubernetes.io/ssl-redirect: "true" # Set true when TLS is enabled
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
-    - host: taskflow.20.212.128.251.nip.io # Use the new dynamic public IP format
+    - host: taskflow-scg.southeastasia.cloudapp.azure.com # Azure Free DNS Label
       paths:
         - path: /
           pathType: Prefix
@@ -72,6 +73,10 @@ ingress:
           pathType: Prefix
           backend:
             serviceName: backend
+  tls:
+    - hosts:
+        - taskflow-scg.southeastasia.cloudapp.azure.com
+      secretName: taskflow-tls
 
 # Dependency configuration: Observability Stack
 kube-prometheus-stack:
@@ -97,3 +102,5 @@ ingress-nginx:
       # and the loadBalancerIP to allow AKS to provision a new dynamic Public IP automatically.
       type: LoadBalancer
       externalTrafficPolicy: Local
+      annotations:
+        service.beta.kubernetes.io/azure-dns-label-name: "taskflow-scg"
