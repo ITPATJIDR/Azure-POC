@@ -124,6 +124,7 @@ jobs:
             --create-namespace \
             --version v1.14.4 \
             --set installCRDs=true \
+            --force \
             --wait
 
       - name: Update Helm Dependencies
