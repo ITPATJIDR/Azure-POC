@@ -84,14 +84,28 @@ kube-prometheus-stack:
   grafana:
     adminPassword: "admin" # Change this in production
     # Optionally expose Grafana via Ingress if needed
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        url: http://taskflow-loki:3100
+        access: proxy
+        isDefault: false
   prometheus:
     prometheusSpec:
       retention: "5d"
-  # Disable noisy alerts for demo
+  # Enable default alerting rules for Node/Pod health
   defaultRules:
-    create: false
+    create: true
   alertmanager:
-    enabled: false
+    enabled: true
+
+# Loki Stack (Logging)
+loki-stack:
+  enabled: true
+  loki:
+    isDefault: false
+  promtail:
+    enabled: true
 
 # Nginx Ingress Controller (Added as dependency)
 ingress-nginx:

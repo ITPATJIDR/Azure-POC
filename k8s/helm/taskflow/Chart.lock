@@ -2,5 +2,11 @@ dependencies:
 - name: kube-prometheus-stack
   repository: https://prometheus-community.github.io/helm-charts
   version: 56.6.2
-digest: sha256:000e200b2998af8851a529592a0cbff5db1e59092a1c1a5635409f966e873349
-generated: "2026-03-05T23:09:34.222031487+07:00"
+- name: ingress-nginx
+  repository: https://kubernetes.github.io/ingress-nginx
+  version: 4.10.0
+- name: loki-stack
+  repository: https://grafana.github.io/helm-charts
+  version: 2.10.2
+digest: sha256:a9d6607eba844843109c743bd2d14d5fcb89ac3d2f3fbe73abe78f975a0ce05a
+generated: "2026-03-08T22:35:28.206122588+07:00"

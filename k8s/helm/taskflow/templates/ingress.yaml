@@ -28,4 +28,8 @@ spec:
                   number: {{ if eq .backend.serviceName "frontend" }}{{ $.Values.frontend.service.port }}{{ else }}{{ $.Values.backend.service.port }}{{ end }}
           {{- end }}
     {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 {{- end }}
