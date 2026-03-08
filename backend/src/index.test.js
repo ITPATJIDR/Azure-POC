@@ -23,6 +23,7 @@ test('Backend App basic check', async (t) => {
 	});
 
 	await t.test('Environment variables check', () => {
-		assert.strictEqual(typeof process.env.NODE_ENV, 'string' || 'undefined');
+		const type = typeof process.env.NODE_ENV;
+		assert.ok(type === 'string' || type === 'undefined', 'NODE_ENV should be a string or undefined');
 	});
 });
