@@ -143,11 +143,13 @@ app.use((req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-	console.log(`✅ Todo Backend running on port ${PORT}`);
-	console.log(`   Health: http://localhost:${PORT}/health`);
-	console.log(`   Todos:  http://localhost:${PORT}/api/todos`);
-	console.log(`   DB:     ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
-});
+if (require.main === module) {
+	app.listen(PORT, () => {
+		console.log(`✅ Todo Backend running on port ${PORT}`);
+		console.log(`   Health: http://localhost:${PORT}/health`);
+		console.log(`   Todos:  http://localhost:${PORT}/api/todos`);
+		console.log(`   DB:     ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}`);
+	});
+}
 
 module.exports = app;
