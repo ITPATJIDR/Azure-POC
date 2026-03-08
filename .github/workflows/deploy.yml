@@ -12,7 +12,36 @@ env:
   RESOURCE_GROUP: "scg-dev-rg"
 
 jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # ปรับเวอร์ชัน Node.js ให้ตรงกับโปรเจกต์ของคุณ
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Run Frontend Tests
+        working-directory: ./frontend
+        run: npm run test --if-present
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Run Backend Tests
+        working-directory: ./backend
+        run: npm run test --if-present
+
   build-and-push:
+    needs: test # รอให้ Job test ผ่านก่อนถึงจะเริ่ม Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
