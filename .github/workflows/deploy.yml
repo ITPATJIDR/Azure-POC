@@ -142,3 +142,31 @@ jobs:
             --set backend.image.tag=${{ github.sha }} \
             --set database.password=${{ secrets.DB_PASSWORD }} \
             --wait --timeout 5m
+
+      - name: Auto-Seed Database
+        run: |
+          echo "Waiting for backend pods to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=backend -n default --timeout=60s
+          
+          POD_NAME=$(kubectl get pods -n default -l app.kubernetes.io/name=backend -o jsonpath='{.items[0].metadata.name}')
+          
+          echo "Running seeding script on $POD_NAME..."
+          # Pass the SQL file via stdin to a tiny node script executed in the backend pod
+          kubectl exec -i $POD_NAME -n default -- node -e "
+          const { Client } = require('pg');
+          const fs = require('fs');
+          const client = new Client({
+            host: process.env.DB_HOST,
+            port: process.env.DB_PORT,
+            database: process.env.DB_NAME,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            ssl: { rejectUnauthorized: false }
+          });
+          const sql = fs.readFileSync(0, 'utf-8'); // Read from stdin
+          client.connect()
+            .then(() => client.query(sql))
+            .then(() => { console.log('Database seeded successfully!'); process.exit(0); })
+            .catch(e => { console.error('Seeding error:', e); process.exit(1); })
+            .finally(() => client.end());
+          " < database/init.sql
