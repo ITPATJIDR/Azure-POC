@@ -15,6 +15,7 @@ const pool = new Pool({
 	database: process.env.DB_NAME || 'tododb',
 	user: process.env.DB_USER || 'todouser',
 	password: process.env.DB_PASSWORD || 'todopassword',
+	...(process.env.DB_SSL === 'true' && { ssl: { rejectUnauthorized: false } }),
 });
 
 // ─── Middleware ───────────────────────────────────────────────────────────────

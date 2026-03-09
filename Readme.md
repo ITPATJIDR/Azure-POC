@@ -1,137 +1,155 @@
-# 🚀 TaskFlow: Three-Tier DevOps Challenge
-
-Welcome to the **TaskFlow** project. This repository contains a production-grade microservice deployment using modern DevOps practices and tools, fulfilling the 7-day DevOps challenge requirements.
-
----
-
-## 🏗️ Architecture & Tech Stack
-
-This project implements a classic Three-Tier Architecture, containerized and deployed on Azure Kubernetes Service (AKS) using Infrastructure as Code (OpenTofu).
-
-**Tech Stack:**
-- **Infrastructure:** OpenTofu (Terraform), Azure (VNet, AKS, ACR, Load Balancer, PostgreSQL Flexible Server)
-- **Frontend (Tier 1):** React, TypeScript, Vite, NGINX 
-- **Backend (Tier 2):** Node.js, Express, `pg` driver
-- **Database (Tier 3):** Azure Database for PostgreSQL Flexible Server 16
-- **Deployment:** Docker, Helm, Kubernetes (AKS)
-- **CI/CD:** GitHub Actions
-- **Observability:** Prometheus & Grafana (via `kube-prometheus-stack` Helm dependency)
-
-### Architecture Diagram
-
-```mermaid
-graph TD
-    User([User]) -->|Internet| LB[Azure Standard Load Balancer]
-    
-    subgraph "Tier 1: Web (VNet: 10.0.0.0/16)"
-        LB -->|Port 80/443| Ingress[NGINX Ingress Controller]
-        Ingress -->|/| Frontend[React + NGINX Pods]
-    end
-    
-    subgraph "Tier 2: Application / AKS"
-        Ingress -->|/api| Backend[Node.js Express Pods]
-        Frontend -.->|API Calls| Backend
-        Backend -.->|Pull Images| ACR[Azure Container Registry]
-    end
-    
-    subgraph "Tier 3: Database (Delegated Subnet)"
-        Backend -->|TCP 5432| DB[(PostgreSQL Flexible Server)]
-    end
-
-    Metrics[Prometheus] -->|Scrapes| Frontend
-    Metrics -->|Scrapes| Backend
-    Grafana -->|Displays| Metrics
+# How to deploy the project
+อันดับเเรกที่ต้องทำเลย ก็คือ git clone
+```
+	git clone https://github.com/ITPATJIDR/Azure-POC.git
 ```
 
----
-
-## 🛠️ Step 1: Infrastructure as Code (OpenTofu)
-
-The infrastructure is fully defined as code in the `opentofu/` directory.
-
-### Prerequisites:
-- `tofu` (OpenTofu CLI) installed.
-- `az` (Azure CLI) installed and logged in (`az login`).
-- Azure Subscription.
-
-### Deployment Steps:
-
-1. **Configure Variables:**
-   ```bash
-   cp opentofu/terraform.tfvars.example opentofu/terraform.tfvars
-   ```
-   Edit `terraform.tfvars` and provide a secure **password** for the database and your **SSH public key**.
-
-2. **Provision Infrastructure:**
-   ```bash
-   cd opentofu
-   tofu init
-   tofu plan
-   tofu apply -auto-approve
-   ```
-
-3. **Grant Role Assignments (Manual step due to SP constraints):**
-   ```bash
-   # Grant AcrPull to AKS Kubelet
-   KUBELET_ID=$(az aks show -g scg-dev-rg -n scg-dev-aks --query identityProfile.kubeletidentity.objectId -o tsv)
-   ACR_ID=$(az acr show -g scg-dev-rg -n scgdevacr --query id -o tsv)
-   az role assignment create --assignee $KUBELET_ID --role AcrPull --scope $ACR_ID
-   ```
-
----
-
-## 🔁 Step 2: CI/CD Pipeline (GitHub Actions)
-
-The CI/CD pipeline is defined in `.github/workflows/deploy.yml` and triggers automatically on pushes to the `main` branch.
-
-### CI/CD Workflow:
-1. **Azure Login:** Authenticates using Service Principal.
-2. **Build & Push:** Uses `docker buildx` to build and tag images with the Git commit SHA, then pushes them to the Azure Container Registry (`scgdevacr.azurecr.io`).
-3. **Deploy (Helm):** Configures `kubectl` context, dynamically updates Helm values with the new image tags and injected database secrets, and runs `helm upgrade --install`.
-
-### Setup Actions Secrets:
-Before pushing code, create the following secrets in your GitHub Repository settings:
-- `AZURE_CREDENTIALS`: JSON output of `az ad sp create-for-rbac --name "github-actions" --role contributor...`
-- `DB_PASSWORD`: The exact password you set for PostgreSQL in `terraform.tfvars`.
-
----
-
-## ☸️ Step 3: Kubernetes Deployment (Helm)
-
-The Kubernetes manifests are packaged into a Helm chart located at `k8s/helm/taskflow`.
-
-**Features of the Helm Chart:**
-- **Prometheus Stack Dependency:** Automatically installs Prometheus, Grafana, and AlertManager alongside the app.
-- **Secrets Management:** Injects the Database password securely from GitHub Actions into Kubernetes Secrets (`templates/backend-secret.yaml`).
-- **Ingress Rule:** Single Load Balancer routing `/api` to the backend and `/` to the frontend (`templates/ingress.yaml`).
-- **Probes:** Configured Liveness and Readiness probes for zero-downtime rolling updates.
-
-*(To view it manually without GitHub Actions)*:
-```bash
-az aks get-credentials --resource-group scg-dev-rg --name scg-dev-aks
-helm dependency update k8s/helm/taskflow
-helm upgrade --install taskflow ./k8s/helm/taskflow --set database.password="<YOUR_DB_PASSWORD>"
+จากนั้น ติดตั้ง azure cli เเละ opentofu
+```
+	sudo apt-get update && sudo apt-get install -y azure-cli opentofu
 ```
 
+ต่อไปจะต้อง setup credentials ของ azure ที่ใช้สำหรับ opentofu 
+- เริ่มจาก login azure 
+```
+	az login
+```
+- ต่อเราจะต้อง ดึง subscription id ออกมาเพื่อใช้สร้าง Service Principal 
+```
+	az account show --query id -o tsv
+	az ad sp create-for-rbac --name {CHANGEME} --role Contributor --scopes /subscriptions/{CHANGEME}
+```
+- จากนั้นเอา output จาก ข้อก่อนหน้ามาใส่ในไฟล์ในไฟล์ opentofu/az.json
+```
+{
+  "appId": "YOUR_CLIENT_ID",
+  "displayName": "opentofu-sp",
+  "password": "YOUR_CLIENT_SECRET",
+  "tenant": "YOUR_TENANT_ID",
+  "subscriptionId": "SUBSCRIPTION_ID"
+}
+```
+
+จากนั้นเริ่มจาก infrastructure ด้วย opentofu ได้เลย 
+```
+	cd opentofu
+	tofu init
+	tofu plan
+	make apply 
+```
+
+จากนั้นให้ทำการ push ของขึ้นไปที่ Github ของตัวเองจากนั้นเราจะ setup github actions secret กัน
+- ไปที่ repository ของตัวเอง จากนั้น settings เเละ ไปที่ secrets and variables เข้าไปที่ เมนู actions กด new repository secret
+
+- Secret เเรก ชื่อ AZURE_CREDENTIALS 
+```
+{
+  "appId": "YOUR_CLIENT_ID",
+  "displayName": "opentofu-sp",
+  "password": "YOUR_CLIENT_SECRET",
+  "tenant": "YOUR_TENANT_ID",
+  "subscriptionId": "SUBSCRIPTION_ID"
+}
+```
+
+- Secret ที่สอง ชื่อ DB_PASSWORD ตั้งรหัสผ่านของ Database 
+
+ต่อไป หลังจากที่ opentofu สร้าง infrastructure เสร็จเเล้ว เราจะทำการ push code ขึ้นไปที่ Github ของตัวเองเพื่อให้ git action ทำการ deploy frontend เเละ backend ให้
+```
+	git push
+```
 ---
 
-## 📈 Observability (Monitoring & Logging)
 
-By integrating the `kube-prometheus-stack` into the Helm Chart, the AKS cluster is fully observable from minute one.
+# Architecture and CI/CD diagrams
 
-### Accessing Grafana Dashboards
-Once the Helm chart is deployed, access the Grafana dashboard via port-forwarding:
-
-```bash
-kubectl port-forward svc/taskflow-grafana 3000:80
+### โปรเจคนี้สร้างขึ้นบน three tier architecture 
 ```
-- Open `http://localhost:3000`
-- **Username:** `admin`
-- **Password:** `admin` (Default set in `values.yaml`)
+      [ External World ]          [ Azure Cloud Ecosystem (VNet) ]
+              |
+      (1) User Traffic            +-----------------------------------------------------+
+              |                   |  Azure Virtual Network (VNet)                       |
+              v                   |                                                     |
+      +---------------+           |   +---------------------------------------------+   |
+      | Azure Public  |           |   |       Azure Kubernetes Service (AKS)        |   |
+      | Load Balancer +----------->   |                                             |   |
+      +---------------+           |   |  (Tier 1: Presentation)                     |   |
+              |                   |   |  +-------------------+                      |   |
+              |                   |   |  |   Frontend Pods   | (React/Vite)         |   |
+              |                   |   |  +---------+---------+                      |   |
+              |                   |   |            |                                |   |
+              |                   |   |            v                                |   |
+              |                   |   |  (Tier 2: Application)                      |   |
+              |                   |   |  +-------------------+                      |   |
+              |                   |   |  |    Backend Pods   | (Node.js API)        |   |
+              |                   |   |  +---------+---------+                      |   |
+              |                   |   +------------|--------------------------------+   |
+              |                   |                |                                    |
+              |                   |                | (Private Link / Managed Identity)  |
+              |                   |                v                                    |
+              |                   |   +---------------------------+                     |
+              |                   |   |    (Tier 3: Data Tier)    |                     |
+              |                   |   |   PostgreSQL (Flexible)   |                     |
+              |                   |   +---------------------------+                     |
+              |                   +-----------------------------------------------------+
+              |                                     ^
+              |           (Image Pull)              |
+              +-------------------------------------+
+                               |
+                   +-----------------------+
+                   | Azure Container Reg.  |
+                   |        (ACR)          |
+                   +-----------^-----------+
+                               |
+      [ CI/CD Pipeline ]       | (2) Docker Push
+                               |
+      +------------------------+------------------------+
+      |             GitHub Actions (Runner)             |
+      |  1. Build Docker      2. Push to ACR            |
+      |  3. Helm Package      4. Deploy to AKS          |
+      +------------------------^------------------------+
+                               |
+                        (3) Git Push
+                               |
+                        +--------------+
+                        |  Developer   |
+                        +--------------+
 
-### What is Monitored?
-- **Node Resources:** CPU, Memory, Disk usage across the `system` and `user` AKS node pools.
-- **Pod Health:** Restart rates, memory limits, and liveness probe failures for the `taskflow-backend` and `taskflow-frontend`.
-- **Kubernetes State:** Cluster-level metrics via `kube-state-metrics`.
+```
+โดยจุดประสงค์ ที่เลือก architecture นี้เพราะว่า เป็นพื้นฐานที่จะต่อยอดไปยัง architecture อื่นที่เป็นระดับ enterprise ได้เพราะว่าการเเบ่ง เป็น 3 layer ได้เเก่
 
-*(Additionally, Azure Monitor / Container Insights is enabled at the infrastructure level via OpenTofu for control-plane logs).*
+- Presentation layer คือ layer สำหรับ รับ request จาก User เเละส่งข้อมูลไปยัง Application layer เพื่อ ประมวลผลต่อ
+
+- Application layer คือส่วนที่ รับหน้าที่ ประมวลผลข้อมูลที่เข้ามา เเละ Read/Write ลง Database layer 
+
+- Database layer คือส่วนที่ใช้เก็บข้อมูลต่างๆๆที่ได้จาก application layer เเละ ส่งข้อมูลต่างๆๆไปให้ application layer
+
+เเละด้วยการออกเเบบ three tier architecture ทำให้เเต่ละ layer มีความ elastic สูงมาก เช่นเราสามารถ 
+
+- scale เเค่ส่วน Application layer เพื่อรองรับ load ที่เพิ่มขึ้นมาได้ ถ้ากับ Kube เราก็ทำการติดตั้ง HPA เพื่อให้ scale pod ได้
+
+---
+
+### CI/CD pipeline
+CI/CD จะทำงานเมือ มีการ push code ขึ้นไปบน project เเละ 
+
+การทำ CI/CD จะเเบ่งเป็น 3 ขั้นตอนคือ 
+
+- test
+- build and push
+- deploy
+
+
+### Monitoring and logging setup
+- prometheus
+- grafana
+- loki
+- promtail
+
+### Explan Code 
+- frontend 
+- backend 
+- database
+- k8s
+- opentofu 
+- docker-compose

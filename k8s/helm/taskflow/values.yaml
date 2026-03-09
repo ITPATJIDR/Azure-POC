@@ -39,6 +39,7 @@ backend:
     NODE_ENV: production
     PORT: "3001"
     CORS_ORIGIN: "*" # Allow all in demo, restrict in prod
+    DB_SSL: "true"
   resources:
     limits:
       cpu: 250m
