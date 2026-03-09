@@ -119,12 +119,16 @@ jobs:
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
-          helm upgrade --install cert-manager jetstack/cert-manager \
-            --namespace cert-manager \
-            --create-namespace \
-            --version v1.14.4 \
-            --set installCRDs=true \
-            --wait
+          if ! helm status cert-manager -n cert-manager; then
+            helm upgrade --install cert-manager jetstack/cert-manager \
+              --namespace cert-manager \
+              --create-namespace \
+              --version v1.14.4 \
+              --set installCRDs=true \
+              --wait
+          else
+            echo "Cert-Manager already installed, skipping to avoid webhook conflict"
+          fi
 
       - name: Update Helm Dependencies
         run: helm dependency update ./k8s/helm/taskflow
