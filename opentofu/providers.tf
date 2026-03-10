@@ -12,15 +12,12 @@ terraform {
     }
   }
 
-  # ── Remote Backend (Azure Blob Storage) ───────────────────────────────────
-  # Uncomment and fill in after creating storage account:
-  #
-  # backend "azurerm" {
-  #   resource_group_name  = "scg-tfstate-rg"
-  #   storage_account_name = "scgtfstate"
-  #   container_name       = "tfstate"
-  #   key                  = "networking/terraform.tfstate"
-  # }
+  backend "azurerm" {
+    resource_group_name  = "scg-tfstate-rg"
+    storage_account_name = "scgtfstate"
+    container_name       = "tfstate"
+    key                  = "networking/terraform.tfstate"
+  }
 }
 
 provider "azurerm" {
