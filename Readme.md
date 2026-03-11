@@ -92,55 +92,115 @@ db_admin_password = Database Password
 
 ### โปรเจคนี้สร้างขึ้นบน three tier architecture 
 ```
-      [ External World ]          [ Azure Cloud Ecosystem (VNet) ]
-              |
-      (1) User Traffic            +-----------------------------------------------------+
-              |                   |  Azure Virtual Network (VNet)                       |
-              v                   |                                                     |
-      +---------------+           |   +---------------------------------------------+   |
-      | Azure Public  |           |   |       Azure Kubernetes Service (AKS)        |   |
-      | Load Balancer +----------->   |                                             |   |
-      +---------------+           |   |  (Tier 1: Presentation)                     |   |
-              |                   |   |  +-------------------+                      |   |
-              |                   |   |  |   Frontend Pods   | (React/Vite)         |   |
-              |                   |   |  +---------+---------+                      |   |
-              |                   |   |            |                                |   |
-              |                   |   |            v                                |   |
-              |                   |   |  (Tier 2: Application)                      |   |
-              |                   |   |  +-------------------+                      |   |
-              |                   |   |  |    Backend Pods   | (Node.js API)        |   |
-              |                   |   |  +---------+---------+                      |   |
-              |                   |   +------------|--------------------------------+   |
-              |                   |                |                                    |
-              |                   |                | (Private Link / Managed Identity)  |
-              |                   |                v                                    |
-              |                   |   +---------------------------+                     |
-              |                   |   |    (Tier 3: Data Tier)    |                     |
-              |                   |   |   PostgreSQL (Flexible)   |                     |
-              |                   |   +---------------------------+                     |
-              |                   +-----------------------------------------------------+
-              |                                     ^
-              |           (Image Pull)              |
-              +-------------------------------------+
-                               |
-                   +-----------------------+
-                   | Azure Container Reg.  |
-                   |        (ACR)          |
-                   +-----------^-----------+
-                               |
-      [ CI/CD Pipeline ]       | (2) Docker Push
-                               |
-      +------------------------+------------------------+
-      |             GitHub Actions (Runner)             |
-      |  1. Build Docker      2. Push to ACR            |
-      |  3. Helm Package      4. Deploy to AKS          |
-      +------------------------^------------------------+
-                               |
-                        (3) Git Push
-                               |
-                        +--------------+
-                        |  Developer   |
-                        +--------------+
+╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                           TASKFLOW — THREE-TIER INFRASTRUCTURE (Azure / South East Asia)             ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+  [ DEVELOPER ]              [ GitHub Actions — CI/CD Pipeline ]
+      │                       ┌────────────────────────────────────────────────┐
+      │  git push             │  1. Run Tests (Vitest / Jest)                  │
+      └──────────────────────>│  2. Docker Build & Push ──────────────────────────────────┐
+                              │  3. helm upgrade --install taskflow            │          │
+                              └──────────────────────────┬─────────────────────┘          │
+                                                         │ kubectl/helm                   │ docker push
+                                                         │                                │
+══════════════════════════════════════════════════════╤══╪═════════════════════════════╤══╪════════════╗
+ Azure Cloud  (southeastasia / Resource Group:        │  │                             │  │            ║
+              scg-dev-rg)                             │  │                             │  ▼            ║
+                                                      │  │                  ┌─────────────────────┐    ║
+                                                      │  │                  │  Azure Container    │    ║
+  ┌───────────────────────────────────────────────────┼──┼──────────────┐   │  Registry (ACR)     │    ║
+  │  VNet: scg-dev-vnet  (10.0.0.0/16)                │  │              │   │  scgdevacr          │    ║
+  │                                                   │  │  image pull  │   │  10.0.3.0/24        │    ║
+  │  ┌──────────────────────────────────────────────┐ │◄─┼──────────────┘   │  (Private Endpoint) │    ║
+  │  │  Azure Kubernetes Service (scg-dev-aks)       │ │  │  :443           └─────────────────────┘    ║
+  │  │  Standard Tier · Azure CNI · Zones: 2,3       │ │  │                                            ║
+  │  │                                               │ │  │                                            ║
+  │  │  ┌──────────────────────────────────────────┐ │ │  │                                            ║
+  │  │  │  System Node Pool (10.0.1.0/24)          │ │ │  │                                             ║
+  │  │  │  Standard_D2s_v3 · 1 node                │ │ │  │                                             ║
+  │  │  │  [only_critical_addons]                  │ │ │  │                                             ║
+  │  │  │                                          │ │ │  │                                             ║
+  │  │  │  ┌────────────────────────────────────┐  │ │ │  │                                             ║
+  │  │  │  │  NGINX Ingress Controller            │  │ │ │  │                                            ║
+  │  │  │  │  (Azure Public Load Balancer)         │◄──┘  │                                            ║
+  │  │  │  │  HTTP :80 → redirect HTTPS           │  │    │   NSG: Allow :80,:443,:30000-32767         ║
+  │  │  │  │  HTTPS :443 (TLS via cert-manager)   │  │    │        Allow VNet, AzureLB                ║
+  │  │  │  └──────────────┬──────────────────────┘  │    │        Deny All others                    ║
+  │  │  │                 │                          │    │                                            ║
+  │  │  │           Ingress Rules                    │    │                                            ║
+  │  │  │     path:/  ──────────────────────┐        │    │                                            ║
+  │  │  │     path:/api ──────────────────┐ │        │    │                                            ║
+  │  │  └──────────────────────────────── │─│────────┘    │                                            ║
+  │  │                                    │ │              │                                            ║
+  │  │  ┌──────────────────────────────── │─┼──────────────────────────────────────────────────────┐  ║
+  │  │  │  User Node Pool (10.0.2.0/24)   │ │   Standard_D2s_v3 · 1 node                           │  ║
+  │  │  │                                 │ │                                                       │  ║
+  │  │  │  ┌──────────────────────────────┘ │                                                       │  ║
+  │  │  │  │                                │                                                       │  ║
+  │  │  │  │  TIER 1 — Presentation         │                                                       │  ║
+  │  │  │  ▼                                │                                                       │  ║
+  │  │  │  ┌──────────────────────────┐     │                                                       │  ║
+  │  │  │  │  Frontend Pods           │     │                                                       │  ║
+  │  │  │  │  React/Vite (Nginx)      │     │                                                       │  ║
+  │  │  │  │  image: taskflow-frontend│     │                                                       │  ║
+  │  │  │  │  cpu req: 50m / lim:100m │     │                                                       │  ║
+  │  │  │  │  mem req: 64Mi/ lim:128Mi│     │                                                       │  ║
+  │  │  │  │  ┌─────────────────────┐ │     │                                                       │  ║
+  │  │  │  │  │ HPA: 2–5 pods       │ │     │                                                       │  ║
+  │  │  │  │  │ target CPU: 70%     │ │     │                                                       │  ║
+  │  │  │  │  └─────────────────────┘ │     │                                                       │  ║
+  │  │  │  └──────────────────────────┘     │                                                       │  ║
+  │  │  │                                   │                                                       │  ║
+  │  │  │  TIER 2 — Application             │                                                       │  ║
+  │  │  │  ▼                                │                                                       │  ║
+  │  │  │  ┌──────────────────────────┐     │     ┌──────────────────────────────┐                  │  ║
+  │  │  │  │  Backend Pods            │     │     │  Observability Stack          │                  │  ║
+  │  │  │  │  Node.js API (Express)   │     │     │                              │                  │  ║
+  │  │  │  │  image: taskflow-backend │     │     │  ┌──────────┐ ┌───────────┐  │                  │  ║
+  │  │  │  │  cpu req:100m / lim:250m │     │     │  │Prometheus│ │  Grafana  │  │                  │  ║
+  │  │  │  │  mem req:128Mi/ lim:256Mi│     │     │  └────┬─────┘ └─────▲─────┘  │                  │  ║
+  │  │  │  │  PORT: 3001              │─────┼─────│───────┘             │        │                  │  ║
+  │  │  │  │  /health (readiness)     │     │     │  ┌──────────┐ ┌──────────┐   │                  │  ║
+  │  │  │  │  ┌─────────────────────┐ │     │     │  │  Loki    │ │Alertmgr  │   │                  │  ║
+  │  │  │  │  │ HPA: 2–5 pods       │ │     │     │  └──────────┘ └──────────┘   │                  │  ║
+  │  │  │  │  │ target CPU: 70%     │ │     │     │  ┌──────────┐               │                  │  ║
+  │  │  │  │  └─────────────────────┘ │     │     │  │ Promtail │ (log scraper) │                  │  ║
+  │  │  │  └──────────┬───────────────┘     │     │  └──────────┘               │                  │  ║
+  │  │  │             │ :5432               │     │  (kube-prometheus-stack +    │                  │  ║
+  │  │  └─────────────│─────────────────────┘     │   loki-stack Helm charts)   │                  │  ║
+  │  │                │                           └──────────────────────────────┘                  │  ║
+  │  └────────────────│─────────────────────────────────────────────────────────────────────────────┘  ║
+  │                   │                                                                                 ║
+  │  TIER 3 — Data    │ NSG: Allow :5432 from 10.0.1.0/24 & 10.0.2.0/24 only                          ║
+  │                   │ Deny All Internet                                                              ║
+  │                   ▼                                                                                ║
+  │  ┌──────────────────────────────────────────────────────────────┐                                 ║
+  │  │  PostgreSQL Flexible Server  (10.0.5.0/24)                   │                                 ║
+  │  │  scg-dev-postgres.postgres.database.azure.com                │                                 ║
+  │  │  SKU: B_Standard_B1ms · Storage: 32 GB · SSL: required       │                                 ║
+  │  │  VNet Delegated: Microsoft.DBforPostgreSQL/flexibleServers    │                                 ║
+  │  │  DB: tododb · User: todoadmin                                 │                                 ║
+  │  └──────────────────────────────────────────────────────────────┘                                 ║
+  │                                                                                                    ║
+  │  ┌──────────────────────────┐                                                                     ║
+  │  │  Management Subnet       │  ← SSH :22 (whitelist CIDR only)                                    ║
+  │  │  10.0.4.0/24  [Bastion]  │    Deny All others                                                  ║
+  │  └──────────────────────────┘                                                                     ║
+  │                                                                                                    ║
+  │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐  ║
+  │  │  Infrastructure-as-Code: OpenTofu modules                                                   │  ║
+  │  │  modules/networking · modules/aks · modules/acr · modules/database · modules/loadbalancer   │  ║
+  │  └─────────────────────────────────────────────────────────────────────────────────────────────┘  ║
+  └────────────────────────────────────────────────────────────────────────────────────────────────────╝
+                                                                                                       ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+ LEGEND:
+   ──► = Traffic flow / API call      :PORT = port number
+   HPA = HorizontalPodAutoscaler      NSG  = Network Security Group
+   CNI = Azure Container Network Interface (pod IP ∈ VNet)
+
 
 ```
 โดยจุดประสงค์ ที่เลือก architecture นี้เพราะว่า เป็นพื้นฐานที่จะต่อยอดไปยัง architecture อื่นที่เป็นระดับ enterprise ได้เพราะว่าการเเบ่ง เป็น 3 layer ได้เเก่
