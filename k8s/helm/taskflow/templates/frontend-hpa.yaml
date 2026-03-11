@@ -1,0 +1,23 @@
+{{- if dig "autoscaling" "enabled" false .Values.frontend }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "taskflow.fullname" . }}-frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "taskflow.fullname" . }}-frontend
+  minReplicas: {{ dig "autoscaling" "minReplicas" 2 .Values.frontend }}
+  maxReplicas: {{ dig "autoscaling" "maxReplicas" 5 .Values.frontend }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ dig "autoscaling" "targetCPUUtilizationPercentage" 70 .Values.frontend }}
+{{- end }}

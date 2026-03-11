@@ -6,7 +6,9 @@ metadata:
     app.kubernetes.io/name: frontend
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
+  {{- if not (dig "autoscaling" "enabled" false .Values.frontend) }}
   replicas: {{ .Values.frontend.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: frontend

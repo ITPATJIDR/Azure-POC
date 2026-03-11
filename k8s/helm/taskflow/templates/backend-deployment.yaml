@@ -6,7 +6,9 @@ metadata:
     app.kubernetes.io/name: backend
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
+  {{- if not (dig "autoscaling" "enabled" false .Values.backend) }}
   replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: backend
