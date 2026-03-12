@@ -7,7 +7,7 @@ export default function LandingPage() {
 			<section className="hero">
 				<div className="hero-badge">✦ Three-Tier Cloud Architecture</div>
 				<h1 className="hero-title">
-					Manage Tasks.<br />
+					Manage Taskss.<br />
 					<span className="gradient-text">Ship Faster.</span>
 				</h1>
 				<p className="hero-sub">
